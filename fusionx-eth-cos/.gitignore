@@ -1,0 +1,17 @@
+node_modules
+.env
+
+# Hardhat files
+/cache
+/artifacts
+
+# TypeChain files
+/typechain
+/typechain-types
+
+# Hardhat Ignition default folder for deployments against a local node
+contract/deployments
+.DS_Store
+.vscode
+
+package-lock.json
