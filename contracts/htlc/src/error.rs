@@ -20,4 +20,28 @@ pub enum ContractError {
 
     #[error("No funds sent with escrow creation")]
     NoFundsSent {},
+
+    #[error("Swap not found")]
+    SwapNotFound {},
+
+    #[error("Invalid secret provided")]
+    InvalidSecret {},
+
+    #[error("Swap already claimed")]
+    SwapAlreadyClaimed {},
+
+    #[error("Swap already refunded")]
+    SwapAlreadyRefunded {},
+
+    #[error("Timelock has not expired yet")]
+    TimelockNotExpired {},
+
+    #[error("Timelock has expired")]
+    TimelockExpired {},
+
+    #[error("Only initiator can refund")]
+    UnauthorizedRefund {},
+
+    #[error("Only recipient can redeem")]
+    UnauthorizedRedeem {},
 }

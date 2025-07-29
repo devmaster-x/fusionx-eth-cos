@@ -1,0 +1,29 @@
+{
+  "name": "fusionx-contracts",
+  "version": "1.0.0",
+  "description": "Smart contracts for FusionX cross-chain HTLC bridge",
+  "main": "index.js",
+  "scripts": {
+    "test": "forge test",
+    "build": "forge build",
+    "deploy-local": "forge script script/Deploy.s.sol --rpc-url http://localhost:8545 --broadcast",
+    "deploy-sepolia": "forge script script/Deploy.s.sol --rpc-url $SEPOLIA_RPC_URL --broadcast --verify"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^4.9.3"
+  },
+  "devDependencies": {
+    "forge-std": "^1.7.1"
+  },
+  "keywords": [
+    "solidity",
+    "ethereum",
+    "htlc",
+    "cross-chain",
+    "defi",
+    "1inch",
+    "fusion"
+  ],
+  "author": "FusionX Team",
+  "license": "MIT"
+} 
