@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { Header } from '@/components/Header'
 import { StatsCard } from '@/components/StatsCard'
+import { ConnectButton } from '@rainbow-me/rainbowkit'
 
 export default function HomePage() {
   const [isHovered, setIsHovered] = useState(false)
@@ -71,7 +72,7 @@ export default function HomePage() {
             </Link>
             
             <div className="flex items-center gap-2 text-neutral-600">
-              <p>Wallet Connect</p>
+              <ConnectButton />
             </div>
           </motion.div>
         </div>
@@ -83,7 +84,27 @@ export default function HomePage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.6 }}
         >
-          <StatsCard/>
+          <StatsCard
+            icon={<TrendingUp className="w-6 h-6" />}
+            title="ETH Price"
+            value="$2,450.32"
+            change="+2.4%"
+            changeType="positive"
+          />
+          <StatsCard
+            icon={<Zap className="w-6 h-6" />}
+            title="NTRN Price"
+            value="$0.85"
+            change="+1.2%"
+            changeType="positive"
+          />
+          <StatsCard
+            icon={<Users className="w-6 h-6" />}
+            title="Live Auctions"
+            value="3"
+            change="Active"
+            changeType="neutral"
+          />
         </motion.div>
         
         {/* Features Section */}
@@ -139,11 +160,21 @@ export default function HomePage() {
                 <Github className="w-5 h-5" />
                 GitHub
               </Link>
-              <Link href="/docs" className="flex items-center gap-2 hover:text-primary-400 transition-colors">
+              <Link 
+                href="https://docs.1inch.io/docs/fusion-swap/introduction" 
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 hover:text-primary-400 transition-colors"
+              >
                 <BookOpen className="w-5 h-5" />
                 Docs
               </Link>
-              <Link href="/governance" className="flex items-center gap-2 hover:text-primary-400 transition-colors">
+              <Link 
+                href="https://snapshot.org" 
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 hover:text-primary-400 transition-colors"
+              >
                 <Shield className="w-5 h-5" />
                 DAO
               </Link>

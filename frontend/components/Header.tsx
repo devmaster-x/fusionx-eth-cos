@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { motion } from 'framer-motion'
 
 export function Header() {
@@ -51,7 +52,7 @@ export function Header() {
 
           {/* Wallet Connect */}
           <div className="flex items-center gap-4">
-            <p>Wallet Connect</p>
+            <ConnectButton />
           </div>
         </div>
       </div>
