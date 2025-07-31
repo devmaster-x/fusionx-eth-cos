@@ -1,9 +1,16 @@
 node_modules
 .env
+.env.*
+
+tsconfig.tsbuildinfo
+next-env.d.ts
 
 # Hardhat files
 /cache
 /artifacts
+/frontend/node_modules
+/frontend/package-lock.json
+/frontend/.next
 
 # TypeChain files
 /typechain
@@ -13,5 +20,3 @@ node_modules
 contract/deployments
 .DS_Store
 .vscode
-
-package-lock.json
