@@ -50,7 +50,9 @@ cargo wasm
 wasm-opt -Os ./target/wasm32-unknown-unknown/release/htlc.wasm -o ./artifacts/htlc-optimized.wasm
 
 # Run tests
-cargo test --features=testing
+Command for test a test file(e.g., create_escrow.rs)
+cargo test --test --create_escrow -- --nocapture
+
 
 ---
 Deployment
