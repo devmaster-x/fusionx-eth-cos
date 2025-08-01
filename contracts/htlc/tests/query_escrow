@@ -1,0 +1,14 @@
+// #[test]
+// fn query_escrow_works() {
+//     let mut deps = mock_dependencies();
+//     let hashlock = "test_hash".to_string();
+
+//     // Setup test escrow
+//     ESCROWS.save(deps.as_mut().storage, &hashlock, &mock_escrow()).unwrap();
+
+//     // Query
+//     let res = query(deps.as_ref(), mock_env(), QueryMsg::GetEscrow { hashlock }).unwrap();
+//     let response: EscrowResponse = from_binary(&res).unwrap();
+
+//     assert_eq!(response.creator, "creator_addr");
+// }

@@ -1,28 +1,45 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::Addr;
-use cosmwasm_std::Coin;
+use cosmwasm_std::{Addr, Uint128};
+use crate::state::Escrow;
 
-
-/// InstantiateMsg allows optional admin setup during deployment
 #[cw_serde]
 pub struct InstantiateMsg {
-    pub admin: Option<Addr>,
+    pub admin: Option<Addr>, // Optional admin for upgrades
 }
 
 #[cw_serde]
 pub enum ExecuteMsg {
     CreateEscrow {
-        swap_id: String,
-        hashlock: String,      // hex-encoded SHA-256 hash
-        timelock: u64,         // UNIX timestamp in seconds
-        recipient: String,     // address to receive funds if hash is revealed
-        amount: Coin,      // includes denom + amount
+        recipient: String,   // Bech32 address
+        hashlock: String,    // Hex-encoded keccak256(secret)
+        timelock: u64,       // Expiration timestamp (seconds)
+        token: String,       // "uatom" or CW20 address
+        amount: Uint128,
     },
-    // future: Redeem, Refund, etc.
+    Claim {
+        hashlock: String,    // Identify the escrow
+        secret: String,      // Preimage to unlock
+    },
+    Refund {
+        hashlock: String,    // Identify the escrow
+    },
 }
 
-// #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-// #[serde(rename_all = "snake_case")]
-// pub enum QueryMsg {
-//     // Add your queries here later
-// }
+#[cw_serde]
+#[derive(QueryResponses)]
+pub enum QueryMsg {
+    #[returns(Escrow)]
+    GetEscrow { hashlock: String },
+}
+
+#[cw_serde]
+pub struct EscrowResponse {
+    pub creator: String,
+    pub recipient: String,
+    pub hashlock: String,
+    pub timelock: u64,
+    pub token: String,
+    pub amount: Uint128,
+    pub is_claimed: bool,
+    pub is_refunded: bool,
+}
