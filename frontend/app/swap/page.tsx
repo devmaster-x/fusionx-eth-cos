@@ -9,29 +9,67 @@ import {
   ChevronDown,
   Clock,
   Users,
-  Zap
+  Zap,
+  AlertCircle
 } from 'lucide-react'
+import { useAccount } from 'wagmi'
 import { Header } from '@/components/Header'
 import { SwapInput } from '@/components/SwapInput'
 import { SwapSettings } from '@/components/SwapSettings'
 import { AuctionPreview } from '@/components/AuctionPreview'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
+import { useHTLCContract, useContractStatus } from '@/lib/hooks/useContracts'
 
 export default function SwapPage() {
   const [fromAmount, setFromAmount] = useState('')
   const [toAmount, setToAmount] = useState('')
   const [showSettings, setShowSettings] = useState(false)
   const [showConfirmation, setShowConfirmation] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('')
+  
+  const { address, isConnected } = useAccount()
+  const { createHTLC, isLoading } = useHTLCContract()
+  const { allConfigured, missingContracts } = useContractStatus()
 
   const handleSwap = async () => {
-    setIsLoading(true)
-    // Simulate swap creation
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    setIsLoading(false)
-    setShowConfirmation(false)
-    // Redirect to auction progress page
-    window.location.href = '/swap/auction-123'
+    if (!isConnected || !address) {
+      setError('Please connect your wallet first')
+      return
+    }
+
+    if (!allConfigured) {
+      setError(`Missing contract configuration: ${missingContracts.join(', ')}`)
+      return
+    }
+
+    if (!fromAmount || parseFloat(fromAmount) <= 0) {
+      setError('Please enter a valid amount')
+      return
+    }
+
+    try {
+      setError('')
+      
+      // For demo purposes, using a mock receiver address
+      // In production, this would come from cross-chain matching
+      const mockReceiver = '0x742d35Cc6734C4332c256e4aaF89fDeeCF06F8c7' as `0x${string}`
+      
+      const result = await createHTLC({
+        amount: fromAmount,
+        receiver: mockReceiver,
+        timeoutMinutes: 60
+      })
+
+      console.log('HTLC created:', result)
+      setShowConfirmation(false)
+      
+      // In production, navigate to order tracking page with the contract ID
+      alert(`HTLC created successfully! Transaction: ${result.txHash}`)
+      
+    } catch (err: any) {
+      console.error('Swap error:', err)
+      setError(err.message || 'Failed to create swap')
+    }
   }
 
   return (
@@ -46,9 +84,34 @@ export default function SwapPage() {
             transition={{ duration: 0.5 }}
           >
             <h1 className="text-3xl font-bold text-neutral-900 mb-2">Swap ETH to NTRN</h1>
-            <p className="text-neutral-600 mb-8">
+            <p className="text-neutral-600 mb-4">
               Create a Dutch auction for optimal price discovery with HTLC security
             </p>
+            
+            {/* Contract Status Warning */}
+            {!allConfigured && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h3 className="font-medium text-amber-800 mb-1">Contracts Not Configured</h3>
+                    <p className="text-sm text-amber-700">
+                      Missing: {missingContracts.join(', ')}. Please update your environment variables with deployed contract addresses.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Error Display */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-700">{error}</p>
+                </div>
+              </div>
+            )}
           </motion.div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -129,10 +192,13 @@ export default function SwapPage() {
                 <div className="mt-6">
                   <button
                     onClick={() => setShowConfirmation(true)}
-                    disabled={!fromAmount || isLoading}
+                    disabled={!fromAmount || isLoading || !isConnected || !allConfigured}
                     className="w-full btn-primary text-lg py-4 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isLoading ? 'Creating Auction...' : 'Start Auction'}
+                    {isLoading ? 'Creating HTLC...' : 
+                     !isConnected ? 'Connect Wallet' :
+                     !allConfigured ? 'Contracts Not Configured' :
+                     'Start Auction'}
                   </button>
                 </div>
               </motion.div>

@@ -52,6 +52,8 @@ export const neutronChainConfig = {
 // Gas configuration for Neutron
 export const neutronGasPrice = GasPrice.fromString('0.0053untrn')
 
+
+
 /**
  * Get CosmWasm client for read-only operations
  */
@@ -155,7 +157,12 @@ export function isKeplrAvailable(): boolean {
 // Extend Window interface for Keplr
 declare global {
   interface Window {
-    keplr?: any
+    keplr?: {
+      enable: (chainId: string) => Promise<void>
+      getOfflineSigner: (chainId: string) => OfflineSigner
+      experimentalSuggestChain: (chainInfo: any) => Promise<void>
+      getKey: (chainId: string) => Promise<{ bech32Address: string }>
+    }
     leap?: any
   }
 } 

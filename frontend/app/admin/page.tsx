@@ -3,25 +3,77 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { 
-  Settings, 
-  Users, 
-  TrendingUp,
-  Shield,
+  CheckCircle, 
+  XCircle, 
+  Copy,
   ExternalLink,
-  Save
+  AlertCircle,
+  Settings
 } from 'lucide-react'
+import { useAccount, useNetwork } from 'wagmi'
 import { Header } from '@/components/Header'
+import { useContractStatus } from '@/lib/hooks/useContracts'
+import { config } from '@/lib/config'
 
 export default function AdminPage() {
-  const [resolverFee, setResolverFee] = useState('0.1')
-  const [maxSwapCap, setMaxSwapCap] = useState('100')
-  const [minDuration, setMinDuration] = useState('5')
-  const [maxDuration, setMaxDuration] = useState('60')
+  const { isConnected, address } = useAccount()
+  const { chain } = useNetwork()
+  const { 
+    htlcConfigured, 
+    fusionSettlerConfigured, 
+    neutronConfigured, 
+    allConfigured, 
+    missingContracts 
+  } = useContractStatus()
+  
+  const [copied, setCopied] = useState('')
 
-  const handleSave = () => {
-    // Simulate saving settings
-    console.log('Saving admin settings...')
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text)
+    setCopied(label)
+    setTimeout(() => setCopied(''), 2000)
   }
+
+  const envTemplate = `# FusionX Frontend Environment Variables
+
+# WalletConnect Project ID (get from https://cloud.walletconnect.com/)
+NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_walletconnect_project_id
+
+# RPC URLs
+NEXT_PUBLIC_ETHEREUM_RPC_URL=https://ethereum.publicnode.com
+NEXT_PUBLIC_NEUTRON_RPC_URL=https://rpc-kralum.neutron-1.neutron.org
+
+# Chain IDs
+NEXT_PUBLIC_ETHEREUM_CHAIN_ID=1
+NEXT_PUBLIC_NEUTRON_CHAIN_ID=neutron-1
+
+# Contract Addresses (UPDATE WITH YOUR DEPLOYED CONTRACT ADDRESSES)
+NEXT_PUBLIC_ETHEREUM_HTLC_ADDRESS=0x...
+NEXT_PUBLIC_FUSION_ORDER_SETTLER_ADDRESS=0x...
+NEXT_PUBLIC_NEUTRON_HTLC_CODE_ID=...
+
+# Environment
+NEXT_PUBLIC_ENVIRONMENT=development
+
+# For development/testing (use Sepolia testnet)
+# NEXT_PUBLIC_ETHEREUM_CHAIN_ID=11155111
+# NEXT_PUBLIC_ETHEREUM_RPC_URL=https://sepolia.infura.io/v3/YOUR_INFURA_KEY`
+
+  const StatusIndicator = ({ isConfigured, label }: { isConfigured: boolean, label: string }) => (
+    <div className="flex items-center gap-3 p-3 rounded-lg border">
+      {isConfigured ? (
+        <CheckCircle className="w-5 h-5 text-green-600" />
+      ) : (
+        <XCircle className="w-5 h-5 text-red-600" />
+      )}
+      <span className={`font-medium ${isConfigured ? 'text-green-900' : 'text-red-900'}`}>
+        {label}
+      </span>
+      <span className={`text-sm ${isConfigured ? 'text-green-600' : 'text-red-600'}`}>
+        {isConfigured ? 'Configured' : 'Missing'}
+      </span>
+    </div>
+  )
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-neutral-50 to-neutral-100">
@@ -29,212 +81,178 @@ export default function AdminPage() {
       
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
-          {/* Header */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="mb-8"
           >
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-bold text-neutral-900 mb-2">DAO Governance</h1>
-                <p className="text-neutral-600">Manage FusionX protocol parameters and settings</p>
-              </div>
-              <div className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium">
-                Admin Access
-              </div>
+            <div className="flex items-center gap-3 mb-6">
+              <Settings className="w-8 h-8 text-primary-600" />
+              <h1 className="text-3xl font-bold text-neutral-900">Admin Dashboard</h1>
             </div>
+            
+            <p className="text-neutral-600 mb-8">
+              Configure and monitor your FusionX deployment status
+            </p>
           </motion.div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Protocol Parameters */}
+            {/* Connection Status */}
             <motion.div
               className="card"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
             >
-              <h2 className="text-xl font-semibold text-neutral-900 mb-6 flex items-center gap-2">
-                <Settings className="w-5 h-5" />
-                Protocol Parameters
-              </h2>
+              <h2 className="text-xl font-semibold mb-4">Connection Status</h2>
               
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-2">
-                    Resolver Fee (%)
-                  </label>
-                  <input
-                    type="number"
-                    value={resolverFee}
-                    onChange={(e) => setResolverFee(e.target.value)}
-                    className="input-field"
-                    min="0"
-                    max="10"
-                    step="0.1"
-                  />
-                  <p className="text-xs text-neutral-500 mt-1">
-                    Fee charged to resolvers for filling orders
-                  </p>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-2">
-                    Max Swap Cap (ETH)
-                  </label>
-                  <input
-                    type="number"
-                    value={maxSwapCap}
-                    onChange={(e) => setMaxSwapCap(e.target.value)}
-                    className="input-field"
-                    min="1"
-                    max="1000"
-                  />
-                  <p className="text-xs text-neutral-500 mt-1">
-                    Maximum amount per swap to prevent large slippage
-                  </p>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-2">
-                    Min Auction Duration (minutes)
-                  </label>
-                  <input
-                    type="number"
-                    value={minDuration}
-                    onChange={(e) => setMinDuration(e.target.value)}
-                    className="input-field"
-                    min="1"
-                    max="30"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-2">
-                    Max Auction Duration (minutes)
-                  </label>
-                  <input
-                    type="number"
-                    value={maxDuration}
-                    onChange={(e) => setMaxDuration(e.target.value)}
-                    className="input-field"
-                    min="5"
-                    max="1440"
-                  />
-                </div>
+              <div className="space-y-3">
+                <StatusIndicator 
+                  isConfigured={isConnected} 
+                  label="Wallet Connected" 
+                />
+                {isConnected && (
+                  <div className="ml-8 space-y-2 text-sm text-neutral-600">
+                    <p><strong>Address:</strong> {address}</p>
+                    <p><strong>Chain:</strong> {chain?.name} ({chain?.id})</p>
+                  </div>
+                )}
               </div>
-              
-              <button
-                onClick={handleSave}
-                className="w-full mt-6 btn-primary flex items-center justify-center gap-2"
-              >
-                <Save className="w-4 h-4" />
-                Save Changes
-              </button>
             </motion.div>
 
-            {/* Governance Links */}
+            {/* Contract Status */}
             <motion.div
               className="card"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5, delay: 0.2 }}
             >
-              <h2 className="text-xl font-semibold text-neutral-900 mb-6 flex items-center gap-2">
-                <Users className="w-5 h-5" />
-                Governance Links
-              </h2>
+              <h2 className="text-xl font-semibold mb-4">Contract Status</h2>
               
-              <div className="space-y-4">
-                <a
-                  href="https://snapshot.org"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <TrendingUp className="w-4 h-4 text-blue-600" />
-                    </div>
+              <div className="space-y-3">
+                <StatusIndicator 
+                  isConfigured={htlcConfigured} 
+                  label="Ethereum HTLC" 
+                />
+                <StatusIndicator 
+                  isConfigured={fusionSettlerConfigured} 
+                  label="Fusion Order Settler" 
+                />
+                <StatusIndicator 
+                  isConfigured={neutronConfigured} 
+                  label="Neutron HTLC Code ID" 
+                />
+              </div>
+
+              {!allConfigured && (
+                <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                     <div>
-                      <h3 className="font-medium text-blue-900">Snapshot Platform</h3>
-                      <p className="text-sm text-blue-700">Learn about DAO governance voting</p>
+                      <p className="text-sm font-medium text-amber-800">Action Required</p>
+                      <p className="text-sm text-amber-700">
+                        Update your environment variables with deployed contract addresses
+                      </p>
                     </div>
                   </div>
-                  <ExternalLink className="w-4 h-4 text-blue-600" />
-                </a>
-                
-                <a
-                  href="https://ethereum.org/en/dao/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                      <Users className="w-4 h-4 text-green-600" />
+                </div>
+              )}
+            </motion.div>
+
+            {/* Current Configuration */}
+            <motion.div
+              className="card lg:col-span-2"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+            >
+              <h2 className="text-xl font-semibold mb-4">Current Configuration</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="font-medium text-neutral-900 mb-2">Network Configuration</h3>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-neutral-600">Ethereum Chain ID:</span>
+                      <span className="font-mono">{config.chainIds.ethereum}</span>
                     </div>
-                    <div>
-                      <h3 className="font-medium text-green-900">DAO Education</h3>
-                      <p className="text-sm text-green-700">Learn about decentralized governance</p>
+                    <div className="flex justify-between">
+                      <span className="text-neutral-600">Neutron Chain ID:</span>
+                      <span className="font-mono">{config.chainIds.neutron}</span>
                     </div>
-                  </div>
-                  <ExternalLink className="w-4 h-4 text-green-600" />
-                </a>
-                
-                <a
-                  href="https://docs.1inch.io/docs/fusion-swap/introduction"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-between p-4 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                      <Shield className="w-4 h-4 text-purple-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-medium text-purple-900">1inch Fusion+ Docs</h3>
-                      <p className="text-sm text-purple-700">Technical documentation for Fusion swaps</p>
+                    <div className="flex justify-between">
+                      <span className="text-neutral-600">Environment:</span>
+                      <span className="font-mono">{config.isDevelopment ? 'Development' : 'Production'}</span>
                     </div>
                   </div>
-                  <ExternalLink className="w-4 h-4 text-purple-600" />
-                </a>
+                </div>
+
+                <div>
+                  <h3 className="font-medium text-neutral-900 mb-2">Contract Addresses</h3>
+                  <div className="space-y-2 text-sm">
+                    <div>
+                      <span className="text-neutral-600 block">Ethereum HTLC:</span>
+                      <span className="font-mono text-xs break-all">
+                        {config.contracts.ethereum.htlc || 'Not configured'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-neutral-600 block">Fusion Order Settler:</span>
+                      <span className="font-mono text-xs break-all">
+                        {config.contracts.ethereum.fusionOrderSettler || 'Not configured'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-neutral-600 block">Neutron HTLC Code ID:</span>
+                      <span className="font-mono text-xs">
+                        {config.contracts.neutron.htlcCodeId || 'Not configured'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Environment Template */}
+            <motion.div
+              className="card lg:col-span-2"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.4 }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold">Environment Template</h2>
+                <button
+                  onClick={() => copyToClipboard(envTemplate, 'template')}
+                  className="flex items-center gap-2 px-3 py-1 text-sm bg-neutral-100 hover:bg-neutral-200 rounded-lg transition-colors"
+                >
+                  <Copy className="w-4 h-4" />
+                  {copied === 'template' ? 'Copied!' : 'Copy Template'}
+                </button>
+              </div>
+              
+              <div className="bg-neutral-900 rounded-lg p-4 overflow-x-auto">
+                <pre className="text-sm text-green-400 font-mono whitespace-pre-wrap">
+                  {envTemplate}
+                </pre>
+              </div>
+              
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-blue-800">Setup Instructions</p>
+                    <ol className="text-sm text-blue-700 mt-1 list-decimal list-inside space-y-1">
+                      <li>Create a <code>.env.local</code> file in your frontend directory</li>
+                      <li>Copy the template above and update with your deployed contract addresses</li>
+                      <li>Restart your development server</li>
+                      <li>Refresh this page to verify configuration</li>
+                    </ol>
+                  </div>
+                </div>
               </div>
             </motion.div>
           </div>
-
-          {/* Current Stats */}
-          <motion.div
-            className="card mt-8"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-          >
-            <h2 className="text-xl font-semibold text-neutral-900 mb-6">Protocol Statistics</h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-neutral-900">$2.4M</div>
-                <div className="text-sm text-neutral-600">Total Volume</div>
-              </div>
-              
-              <div className="text-center">
-                <div className="text-2xl font-bold text-neutral-900">1,247</div>
-                <div className="text-sm text-neutral-600">Total Swaps</div>
-              </div>
-              
-              <div className="text-center">
-                <div className="text-2xl font-bold text-neutral-900">15</div>
-                <div className="text-sm text-neutral-600">Active Resolvers</div>
-              </div>
-              
-              <div className="text-center">
-                <div className="text-2xl font-bold text-neutral-900">99.2%</div>
-                <div className="text-sm text-neutral-600">Success Rate</div>
-              </div>
-            </div>
-          </motion.div>
         </div>
       </main>
     </div>

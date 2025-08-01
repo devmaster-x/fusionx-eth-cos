@@ -20,3 +20,7 @@ next-env.d.ts
 contract/deployments
 .DS_Store
 .vscode
+openzeppelin-contracts
+forge-std
+erc4626-tests
+halmos-cheatcodes
