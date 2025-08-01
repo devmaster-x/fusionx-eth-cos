@@ -37,6 +37,7 @@ NEXT_PUBLIC_NEUTRON_CHAIN_ID=neutron-1
 NEXT_PUBLIC_ETHEREUM_HTLC_ADDRESS=0x1234567890123456789012345678901234567890
 NEXT_PUBLIC_FUSION_ORDER_SETTLER_ADDRESS=0x1234567890123456789012345678901234567890
 NEXT_PUBLIC_NEUTRON_HTLC_CODE_ID=123
+NEXT_PUBLIC_NEUTRON_HTLC_ADDRESS=neutron1...
 
 # Environment
 NEXT_PUBLIC_ENVIRONMENT=development
@@ -72,6 +73,8 @@ You need the following deployed contract addresses:
 ### Neutron Contracts
 1. **HTLC Code ID** (`NEXT_PUBLIC_NEUTRON_HTLC_CODE_ID`)
    - The CosmWasm code ID for the deployed HTLC contract on Neutron
+2. **HTLC Contract Address** (`NEXT_PUBLIC_NEUTRON_HTLC_ADDRESS`)
+   - The deployed HTLC contract address on Neutron
 
 ## Setup Steps
 

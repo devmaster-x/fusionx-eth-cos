@@ -26,6 +26,7 @@ export const config = {
     },
     neutron: {
       htlcCodeId: process.env.NEXT_PUBLIC_NEUTRON_HTLC_CODE_ID || '',
+      htlcAddress: process.env.NEXT_PUBLIC_NEUTRON_HTLC_ADDRESS || '',
     },
   },
 

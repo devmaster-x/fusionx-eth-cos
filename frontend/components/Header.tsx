@@ -12,6 +12,7 @@ export function Header() {
     { href: '/', label: 'Home' },
     { href: '/how-it-works', label: 'How It Works' },
     { href: '/swap', label: 'Swap' },
+    { href: '/swap/atomic', label: 'Atomic Swap' },
     { href: '/my-orders', label: 'My Orders' },
   ]
 

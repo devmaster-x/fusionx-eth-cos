@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { motion } from 'framer-motion'
+import Link from 'next/link'
 import { 
   ArrowRight, 
   Settings, 
@@ -83,10 +84,21 @@ export default function SwapPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <h1 className="text-3xl font-bold text-neutral-900 mb-2">Swap ETH to NTRN</h1>
-            <p className="text-neutral-600 mb-4">
-              Create a Dutch auction for optimal price discovery with HTLC security
-            </p>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h1 className="text-3xl font-bold text-neutral-900 mb-2">Swap ETH to NTRN</h1>
+                <p className="text-neutral-600">
+                  Create a Dutch auction for optimal price discovery with HTLC security
+                </p>
+              </div>
+              <Link 
+                href="/swap/atomic"
+                className="btn-secondary flex items-center gap-2"
+              >
+                <Zap className="w-4 h-4" />
+                Try Atomic Swap
+              </Link>
+            </div>
             
             {/* Contract Status Warning */}
             {!allConfigured && (
