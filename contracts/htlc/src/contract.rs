@@ -101,7 +101,6 @@ pub fn execute_create_escrow(
 
             // No action needed (tokens already sent to contract)
         },
-        // Case: CW20 (we'll implement later)
         _ => return Err(ContractError::UnsupportedToken(token)),
     }
 
