@@ -123,33 +123,27 @@ export function createEthereumPublicClient() {
 }
 
 // Helper to get HTLC contract instance
-export function getHTLCContract(walletClient?: any) {
-  const client = walletClient || createEthereumPublicClient()
-  
+export function getHTLCContract() {
   if (!config.contracts.ethereum.htlc) {
     throw new Error('HTLC contract address not configured')
   }
   
-  return getContract({
+  return {
     address: config.contracts.ethereum.htlc as `0x${string}`,
-    abi: ETHEREUM_HTLC_ABI,
-    client
-  })
+    abi: ETHEREUM_HTLC_ABI
+  }
 }
 
 // Helper to get FusionOrderSettler contract instance
-export function getFusionOrderSettlerContract(walletClient?: any) {
-  const client = walletClient || createEthereumPublicClient()
-  
+export function getFusionOrderSettlerContract() {
   if (!config.contracts.ethereum.fusionOrderSettler) {
     throw new Error('FusionOrderSettler contract address not configured')
   }
   
-  return getContract({
+  return {
     address: config.contracts.ethereum.fusionOrderSettler as `0x${string}`,
-    abi: FUSION_ORDER_SETTLER_ABI,
-    client
-  })
+    abi: FUSION_ORDER_SETTLER_ABI
+  }
 }
 
 // Contract interaction utilities

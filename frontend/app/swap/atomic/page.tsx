@@ -375,8 +375,6 @@ export default function AtomicSwapPage() {
         fromAmount={fromAmount}
         toAmount={toAmount}
         isLoading={isExecuting}
-        title="Confirm Atomic Swap"
-        description="This will execute a trustless cross-chain swap using HTLC and Fusion+ technology. The process involves multiple blockchain transactions."
       />
     </div>
   )
