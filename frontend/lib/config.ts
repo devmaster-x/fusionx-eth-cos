@@ -8,14 +8,14 @@ export const config = {
 
   // RPC URLs
   rpc: {
-    ethereum: process.env.NEXT_PUBLIC_ETHEREUM_RPC_URL || 'https://ethereum.publicnode.com',
-    neutron: process.env.NEXT_PUBLIC_NEUTRON_RPC_URL || 'https://rpc-kralum.neutron-1.neutron.org',
+    ethereum: process.env.NEXT_PUBLIC_ETHEREUM_RPC_URL || 'https://sepolia.infura.io/v3/your-project-id',
+    neutron: process.env.NEXT_PUBLIC_NEUTRON_RPC_URL || 'https://rpc.pion-1.neutron.org',
   },
 
   // Chain IDs
   chainIds: {
-    ethereum: parseInt(process.env.NEXT_PUBLIC_ETHEREUM_CHAIN_ID || '1'),
-    neutron: process.env.NEXT_PUBLIC_NEUTRON_CHAIN_ID || 'neutron-1',
+    ethereum: parseInt(process.env.NEXT_PUBLIC_ETHEREUM_CHAIN_ID || '11155111'), // Sepolia testnet
+    neutron: process.env.NEXT_PUBLIC_NEUTRON_CHAIN_ID || 'pion-1', // Neutron testnet
   },
 
   // Contract Addresses (to be updated after deployment)

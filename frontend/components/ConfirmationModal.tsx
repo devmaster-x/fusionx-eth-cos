@@ -21,7 +21,7 @@ export function ConfirmationModal({
 }: ConfirmationModalProps) {
   if (!isOpen) return null
 
-  const estimatedNTRN = fromAmount ? (parseFloat(fromAmount) * 1820).toFixed(2) : '0'
+  const estimatedNTRN = fromAmount ? (parseFloat(fromAmount) * 1000).toFixed(2) : '0'
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -43,11 +43,11 @@ export function ConfirmationModal({
             <div className="flex items-center justify-between p-4 bg-neutral-50 rounded-lg">
               <div>
                 <p className="text-sm text-neutral-600">You pay</p>
-                <p className="text-lg font-semibold text-neutral-900">{fromAmount} ETH</p>
+                <p className="text-lg font-semibold text-neutral-900">{fromAmount} Sepolia ETH</p>
               </div>
               <div className="text-right">
                 <p className="text-sm text-neutral-600">You receive</p>
-                <p className="text-lg font-semibold text-neutral-900">~{estimatedNTRN} NTRN</p>
+                <p className="text-lg font-semibold text-neutral-900">~{estimatedNTRN} NTRN Test</p>
               </div>
             </div>
 
@@ -56,10 +56,10 @@ export function ConfirmationModal({
               <div className="flex items-start gap-3">
                 <Shield className="w-5 h-5 text-blue-600 mt-0.5" />
                 <div>
-                  <h3 className="text-sm font-medium text-blue-900 mb-1">HTLC Security</h3>
+                  <h3 className="text-sm font-medium text-blue-900 mb-1">HTLC Security (Testnet)</h3>
                   <p className="text-xs text-blue-700">
-                    Your ETH will be locked in a Hash Time-Locked Contract. 
-                    The swap is atomic and secure.
+                    Your Sepolia ETH will be locked in a Hash Time-Locked Contract on testnet. 
+                    The swap is atomic and secure. No real value is involved.
                   </p>
                 </div>
               </div>
@@ -71,7 +71,7 @@ export function ConfirmationModal({
               
               <div className="flex items-center justify-between text-sm">
                 <span className="text-neutral-600">Network</span>
-                <span className="text-neutral-900">Ethereum → Neutron</span>
+                <span className="text-neutral-900">Sepolia → Neutron Testnet</span>
               </div>
               
               <div className="flex items-center justify-between text-sm">

@@ -29,9 +29,14 @@ export interface SwapParams {
   timeoutMinutes?: number
 }
 
-// Utility to convert amount to microunits
+// Utility to convert amount to microunits (testnet)
 function toMicroNeutron(amount: string): string {
   return (parseFloat(amount) * 1_000_000).toString()
+}
+
+// Testnet token conversion rate (Sepolia ETH to NTRN Test)
+function getTestnetConversionRate(): number {
+  return 1000 // 1 Sepolia ETH = 1000 NTRN Test tokens
 }
 
 // Step 1: Generate Secret and Hashlock
@@ -209,7 +214,7 @@ export async function queryCosmosHTLCStatus(contractId: string): Promise<any> {
   }
 }
 
-// Complete swap flow orchestrator
+// Complete swap flow orchestrator (Testnet)
 export async function executeAtomicSwap(
   params: SwapParams,
   onStepUpdate?: (step: number, status: string) => void
@@ -220,17 +225,30 @@ export async function executeAtomicSwap(
   }
   
   try {
+    // Validate testnet parameters
+    if (!params.fromAmount || parseFloat(params.fromAmount) <= 0) {
+      throw new Error('Invalid Sepolia ETH amount')
+    }
+    
+    if (!params.recipientAddress || !params.recipientAddress.startsWith('neutron')) {
+      throw new Error('Invalid Neutron testnet address')
+    }
+    
+    // Calculate expected NTRN amount based on testnet conversion rate
+    const conversionRate = getTestnetConversionRate()
+    const expectedNtrnAmount = (parseFloat(params.fromAmount) * conversionRate).toFixed(2)
+    
     // Step 1: Generate secret and hashlock
-    onStepUpdate?.(1, 'Generating secret and hashlock...')
+    onStepUpdate?.(1, 'Generating secret and hashlock for testnet swap...')
     const { secret, hashlock } = await generateSwapSecret()
     state.secret = secret
     state.hashlock = hashlock
     state.step = 1
     
-    // Step 2: Create HTLC on Cosmos (Bob's action)
-    onStepUpdate?.(2, 'Creating HTLC on Cosmos...')
+    // Step 2: Create HTLC on Cosmos testnet (Bob's action)
+    onStepUpdate?.(2, 'Creating HTLC on Neutron testnet...')
     const cosmosResult = await createCosmosHTLC({
-      amount: params.toAmount,
+      amount: expectedNtrnAmount,
       recipient: params.recipientAddress,
       hashlock: hashlock,
       timeoutMinutes: params.timeoutMinutes || 60
@@ -239,8 +257,8 @@ export async function executeAtomicSwap(
     state.step = 2
     state.status = 'cosmos_locked'
     
-    // Step 3: Fill Fusion+ order on Ethereum (Alice's action)
-    onStepUpdate?.(3, 'Filling Fusion+ order on Ethereum...')
+    // Step 3: Fill Fusion+ order on Sepolia testnet (Alice's action)
+    onStepUpdate?.(3, 'Filling Fusion+ order on Sepolia testnet...')
     const fusionResult = await fillFusionOrder({
       secret: secret,
       amount: params.fromAmount,
@@ -250,8 +268,8 @@ export async function executeAtomicSwap(
     state.step = 3
     state.status = 'ethereum_filled'
     
-    // Step 4: Claim tokens on Cosmos
-    onStepUpdate?.(4, 'Claiming tokens on Cosmos...')
+    // Step 4: Claim NTRN test tokens on Cosmos
+    onStepUpdate?.(4, 'Claiming NTRN test tokens on Neutron testnet...')
     const claimResult = await claimCosmosTokens({
       contractId: cosmosResult.contractId,
       secret: secret
@@ -259,8 +277,8 @@ export async function executeAtomicSwap(
     state.step = 4
     state.status = 'claimed'
     
-    // Step 5: Claim ETH from Fusion+ (Bob's action)
-    onStepUpdate?.(5, 'Claiming ETH from Fusion+...')
+    // Step 5: Claim Sepolia ETH from Fusion+ (Bob's action)
+    onStepUpdate?.(5, 'Claiming Sepolia ETH from Fusion+...')
     const ethClaimResult = await claimEthereumTokens({
       secret: secret,
       orderId: fusionResult.txHash // This would be the actual order ID

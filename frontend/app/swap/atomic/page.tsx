@@ -129,11 +129,11 @@ export default function AtomicSwapPage() {
   }
 
   const steps = [
-    { number: 1, title: 'Generate Secret & Hashlock', description: 'Create cryptographic lock for atomic swap' },
-    { number: 2, title: 'Lock NTRN on Cosmos', description: 'Bob locks tokens in Neutron HTLC contract' },
-    { number: 3, title: 'Fill Fusion+ Order', description: 'Alice fills order on Ethereum with secret' },
-    { number: 4, title: 'Claim NTRN Tokens', description: 'Alice claims tokens using revealed secret' },
-    { number: 5, title: 'Claim ETH from Fusion+', description: 'Bob claims ETH using the same secret' }
+    { number: 1, title: 'Generate Secret & Hashlock', description: 'Create cryptographic lock for testnet atomic swap' },
+    { number: 2, title: 'Lock NTRN Test on Neutron', description: 'Bob locks test tokens in Neutron testnet HTLC contract' },
+    { number: 3, title: 'Fill Fusion+ Order on Sepolia', description: 'Alice fills order on Sepolia testnet with secret' },
+    { number: 4, title: 'Claim NTRN Test Tokens', description: 'Alice claims test tokens using revealed secret' },
+    { number: 5, title: 'Claim Sepolia ETH from Fusion+', description: 'Bob claims Sepolia ETH using the same secret' }
   ]
 
   return (
@@ -147,10 +147,25 @@ export default function AtomicSwapPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <h1 className="text-3xl font-bold text-neutral-900 mb-2">Atomic Swap: ETH ↔ NTRN</h1>
+            <h1 className="text-3xl font-bold text-neutral-900 mb-2">Atomic Swap: Sepolia ETH ↔ NTRN Test</h1>
             <p className="text-neutral-600 mb-4">
-              Execute a trustless cross-chain swap using HTLC and Fusion+ technology
+              Execute a trustless cross-chain swap using HTLC and Fusion+ technology on testnet
             </p>
+            
+            {/* Testnet Information Banner */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <div className="flex items-start gap-3">
+                <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h3 className="font-medium text-blue-800 mb-1">Testnet Environment</h3>
+                  <p className="text-sm text-blue-700">
+                    This swap uses Sepolia testnet ETH and Neutron testnet NTRN tokens. 
+                    Conversion rate: 1 Sepolia ETH = 1000 NTRN Test tokens. 
+                    No real value is involved in testnet transactions.
+                  </p>
+                </div>
+              </div>
+            </div>
             
             {/* Contract Status Warning */}
             {!allConfigured && (
@@ -191,14 +206,14 @@ export default function AtomicSwapPage() {
               {/* From Token */}
               <div className="mb-6">
                 <label className="block text-sm font-medium text-neutral-700 mb-2">
-                  From (Ethereum)
+                  From (Sepolia Testnet)
                 </label>
                 <SwapInput
-                  token="ETH"
-                  network="Ethereum"
+                  token="Sepolia ETH"
+                  network="Sepolia"
                   amount={fromAmount}
                   onAmountChange={setFromAmount}
-                  balance="2.45 ETH"
+                  balance="0.0 Sepolia ETH"
                   isFrom={true}
                 />
               </div>
@@ -213,23 +228,23 @@ export default function AtomicSwapPage() {
               {/* To Token */}
               <div className="mb-6">
                 <label className="block text-sm font-medium text-neutral-700 mb-2">
-                  To (Neutron)
+                  To (Neutron Testnet)
                 </label>
                 <SwapInput
-                  token="NTRN"
-                  network="Neutron"
+                  token="NTRN Test"
+                  network="Pion-1"
                   amount={toAmount}
                   onAmountChange={setToAmount}
-                  balance="0 NTRN"
+                  balance="0 NTRN Test"
                   isFrom={false}
-                  estimated={fromAmount ? `${(parseFloat(fromAmount) * 1820).toFixed(2)} NTRN` : ''}
+                  estimated={fromAmount ? `${(parseFloat(fromAmount) * 1000).toFixed(2)} NTRN Test` : ''}
                 />
               </div>
 
               {/* Recipient Address */}
               <div className="mb-6">
                 <label className="block text-sm font-medium text-neutral-700 mb-2">
-                  Recipient Address (Bob's Neutron Address)
+                  Recipient Address (Neutron Testnet Address)
                 </label>
                 <input
                   type="text"
@@ -239,7 +254,7 @@ export default function AtomicSwapPage() {
                   className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 />
                 <p className="text-xs text-neutral-500 mt-1">
-                  The Neutron address that will receive the NTRN tokens
+                  The Neutron testnet address that will receive the NTRN test tokens
                 </p>
               </div>
 
