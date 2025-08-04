@@ -84,7 +84,7 @@ A Unite DeFi Hackathon project building a **fully onchain, bidirectional swap br
 - GitHub
 - Foundry / Hardhat Anvil
 - Remix (EVM test)
-- Juno/Osmosis Testnets
+- Neutron Testnet
 
 ---
 
@@ -106,8 +106,7 @@ A Unite DeFi Hackathon project building a **fully onchain, bidirectional swap br
 - [x] Working Ethereum ↔ Cosmos preimage swap
 - [x] Contracts deployed and verifiable
 - [x] Frontend DApp with wallet integration
-- [x] Demo showcasing full flow (ETH → ATOM → ETH)
-- [ ] Bonus: Stats/analytics for UX and judging
+- [x] Demo showcasing full flow (ETH → NTRN)
 
 ---
 
