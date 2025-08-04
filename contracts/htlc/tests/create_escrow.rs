@@ -1,125 +1,174 @@
-// tests/create_escrow.rs
+use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
+use cosmwasm_std::{coins, Addr, Uint128};
+use hex_literal::hex;
+use htlc::state::ESCROWS;
+use sha3::Keccak256;
+use sha3::Digest;
+use bech32::{self, ToBase32, Variant};
+use rand::Rng;
+use cosmwasm_std::testing::MockApi;
 
-use cosmwasm_std::{coin, coins, Addr, Timestamp, Empty};
-use cw_multi_test::{App, AppBuilder, Contract, ContractWrapper, Executor};
-
-use htlc::contract::{instantiate, execute, query};
-use htlc::msg::{InstantiateMsg, ExecuteMsg};
+use htlc::contract::execute_create_escrow;
 use htlc::ContractError;
+use htlc::msg::ExecuteMsg;
 
-fn mock_app() -> App {
-    AppBuilder::new().build(|_router, _api, _storage| {})
+/// Helper to create valid test data matching YOUR function requirements
+fn mock_valid_create_params() -> (String, String, u64, String, Uint128) {
+    // Must use valid bech32 address that passes deps.api.addr_validate()
+    let recipient = "wasm1huydeevpz37sd9snkgul6070mstupukw00xkw9".to_string();
+
+    // Must be valid 32-byte hex that passes your hashlock validation
+    let secret = b"32_byte_secret_1234567890123456";
+    let hashlock = hex::encode(Keccak256::digest(secret));
+
+    // Must be future timestamp
+    let timelock = mock_env().block.time.seconds() + 3600;
+
+    // Must be "uatom" to pass your token check
+    let token = "uatom".to_string();
+    let amount = Uint128::new(1000);
+
+    (recipient, hashlock, timelock, token, amount)
 }
 
-fn contract_htlc() -> Box<dyn Contract<Empty>> {
-    let contract = ContractWrapper::new(execute, instantiate, query);
-    Box::new(contract)
-}
+fn mock_valid_addr(prefix: &str) -> String {
+    // Generate random 20 bytes (standard address length)
+    let mut rng = rand::thread_rng();
+    let mut data = [0u8; 20];
+    rng.fill(&mut data);
 
-#[test]
-fn test_create_escrow_success() {
-    let mut app = mock_app();
-
-    let sender = Addr::unchecked("sender");
-    let recipient = Addr::unchecked("recipient");
-
-    // Instantiate the contract
-    let code_id = app.store_code(contract_htlc());
-
-    let instantiate_msg = InstantiateMsg { admin: None };
-
-    let contract_addr = app
-        .instantiate_contract(
-            code_id,
-            sender.clone(),
-            &instantiate_msg,
-            &[],
-            "HTLC",
-            None,
-        )
-        .unwrap();
-
-    // Hash the secret
-    let secret = b"mysecret";
-    let hashlock = sha2::Sha256::digest(secret);
-    let hashlock_hex = hex::encode(&hashlock);
-
-    let timelock = 2_000_000_000u64; // Far future timestamp
-
-    let execute_msg = ExecuteMsg::CreateEscrow {
-        swap_id: "swap1".to_string(),
-        recipient: recipient.to_string(),
-        hashlock: hashlock_hex.clone(),
-        timelock,
-        amount: coin(1_000_000, "untrn"),
-    };
-
-    // Execute create escrow
-    let res = app.execute_contract(
-        sender.clone(),
-        contract_addr.clone(),
-        &execute_msg,
-        &coins(1_000_000, "untrn"),
-    );
-
-    assert!(res.is_ok());
+    // Proper Bech32 encoding with checksum
+    bech32::encode(prefix, data.to_base32(), Variant::Bech32).unwrap()
 }
 
 #[test]
-fn test_redeem_escrow_success() {
-    let mut app = mock_app();
+fn happy_path_creates_escrow() {
+    let mut deps = mock_dependencies();
+    // CRITICAL: Configure mock API with proper settings
+    deps.api = MockApi::default()
+        .with_prefix("wasm");
+        // .with_checksum(true);
+    let env = mock_env();
+    let (recipient, hashlock, timelock, token, amount) = mock_valid_create_params();
 
-    let sender = Addr::unchecked("sender");
-    let recipient = Addr::unchecked("recipient");
+    println!("VALIDATION - Recipient address: {}", recipient);
+    println!("VALIDATION - Address length: {}", recipient.len());
 
-    // Set initial balances
-    app = app.init_modules(|router, _, storage| {
-        router
-            .bank
-            .init_balance(storage, &sender, coins(2_000_000, "untrn"))
-            .unwrap()
-    });
+    // Must send exact amount of uatom
+    let info = mock_info("creator", &coins(amount.u128(), "uatom"));
 
-    // Instantiate the contract
-    let code_id = app.store_code(contract_htlc());
-    let instantiate_msg = InstantiateMsg { admin: None };
-    let contract_addr = app
-        .instantiate_contract(code_id, sender.clone(), &instantiate_msg, &[], "HTLC", None)
-        .unwrap();
-
-    // Create escrow
-    let secret = b"mysecret";
-    let hashlock = sha2::Sha256::digest(secret);
-    let hashlock_hex = hex::encode(&hashlock);
-    let timelock = 2_000_000_000u64;
-
-    let create_msg = ExecuteMsg::CreateEscrow {
-        swap_id: "swap1".to_string(),
-        recipient: recipient.to_string(),
-        hashlock: hashlock_hex.clone(),
+    let res = execute_create_escrow(
+        deps.as_mut(),
+        env,
+        info,
+        recipient.clone(),
+        hashlock.clone(),
         timelock,
-        amount: coin(1_000_000, "untrn"),
-    };
-
-    app.execute_contract(
-        sender.clone(),
-        contract_addr.clone(),
-        &create_msg,
-        &coins(1_000_000, "untrn"),
+        token,
+        amount,
     ).unwrap();
 
-    // Redeem escrow
-    let redeem_msg = ExecuteMsg::Redeem {
-        swap_id: "swap1".to_string(),
-        secret: hex::encode(secret),
-    };
+    // Verify response matches YOUR function's exact output
+    assert_eq!(res.attributes, vec![
+        ("action", "create_escrow"),
+        ("creator", "creator"),
+        ("recipient", recipient.as_str()),
+        ("amount", amount.to_string().as_str()),
+    ]);
 
-    let res = app.execute_contract(
-        recipient.clone(),
-        contract_addr.clone(),
-        &redeem_msg,
-        &[],
+    // Verify state matches YOUR escrow structure
+    let escrow = ESCROWS.load(&deps.storage, hashlock).unwrap();
+    assert_eq!(escrow.amount, amount);
+    assert!(!escrow.is_claimed);
+}
+
+#[test]
+fn rejects_invalid_recipient() {
+    let mut deps = mock_dependencies();
+    let (_, hashlock, timelock, token, amount) = mock_valid_create_params();
+
+    let err = execute_create_escrow(
+        deps.as_mut(),
+        mock_env(),
+        mock_info("creator", &[]),
+        "invalid_address".to_string(), // Will fail addr_validate
+        hashlock,
+        timelock,
+        token,
+        amount,
+    ).unwrap_err();
+
+    assert_eq!(err, ContractError::InvalidAddress);
+}
+
+#[test]
+fn rejects_invalid_hashlock() {
+    let mut deps = mock_dependencies();
+    let (recipient, _, timelock, token, amount) = mock_valid_create_params();
+
+    let err = execute_create_escrow(
+        deps.as_mut(),
+        mock_env(),
+        mock_info("creator", &coins(amount.u128(), "uatom")),
+        recipient,
+        "not_32_byte_hex".to_string(), // Will fail hex decode or length check
+        timelock,
+        token,
+        amount,
+    ).unwrap_err();
+
+    assert!(matches!(err, ContractError::InvalidHashlock(_)));
+}
+
+#[test]
+fn rejects_past_timelock() {
+    let mut deps = mock_dependencies();
+    let env = mock_env();
+    let (recipient, hashlock, _, token, amount) = mock_valid_create_params();
+
+    let past_timelock = env.block.time.seconds() - 1;
+    println!("Current time: {}, Past timelock: {}", env.block.time.seconds(), past_timelock);
+
+    let result = execute_create_escrow(
+        deps.as_mut(),
+        env.clone(),
+        mock_info("creator", &coins(amount.u128(), "uatom")),
+        recipient,
+        hashlock,
+        past_timelock,
+        token,
+        amount,
     );
 
-    assert!(res.is_ok());
+    println!("Result: {:?}", result); // Add this line
+
+    let err = result.unwrap_err();
+    println!("Error: {:?}", err); // Add this line
+
+    assert!(matches!(
+        err,
+        ContractError::InvalidTimelock {
+            current: _,
+            timelock: _
+        }
+    ));
+}
+
+#[test]
+fn rejects_insufficient_funds() {
+    let mut deps = mock_dependencies();
+    let (recipient, hashlock, timelock, token, amount) = mock_valid_create_params();
+
+    let err = execute_create_escrow(
+        deps.as_mut(),
+        mock_env(),
+        mock_info("creator", &coins(amount.u128() - 1, "uatom")), // 1 less than required
+        recipient,
+        hashlock,
+        timelock,
+        token,
+        amount,
+    ).unwrap_err();
+
+    assert!(matches!(err, ContractError::InsufficientFunds { .. }));
 }

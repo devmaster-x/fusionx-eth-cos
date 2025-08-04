@@ -1,24 +1,28 @@
-use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, StdResult, Deps, Binary, BankMsg, to_json_binary};
-use crate::msg::{InstantiateMsg, ExecuteMsg, QueryMsg, EscrowResponse};
-use crate::ContractError;
-use crate::state::{ADMIN, Escrow, ESCROWS};
-use cosmwasm_std::Coin;
-use sha2::{Digest, Sha256};
+use cosmwasm_std::{BankMsg, Coin, CosmosMsg, StdError};
+use sha3::{Digest, Keccak256};
+use cosmwasm_std::to_binary;
+use crate::msg::EscrowResponse;
+use cosmwasm_std::Deps;
+use hex;
+use cosmwasm_std::{
+    entry_point, DepsMut, Env, MessageInfo, Response,
+    StdResult, Addr, Uint128, Binary
+};
+use crate::msg::{InstantiateMsg, ExecuteMsg, QueryMsg};
+use crate::state::{Escrow, ESCROWS};
+use crate::error::ContractError;
 
+#[entry_point]
 pub fn instantiate(
     deps: DepsMut,
     _env: Env,
-    info: MessageInfo,
+    _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> StdResult<Response> {
-    let admin = msg.admin.unwrap_or(info.sender);
-    ADMIN.save(deps.storage, &admin)?;
-
-    Ok(Response::new()
-        .add_attribute("method", "instantiate")
-        .add_attribute("admin", admin))
+    Ok(Response::default())
 }
 
+#[entry_point]
 pub fn execute(
     deps: DepsMut,
     env: Env,
@@ -27,26 +31,14 @@ pub fn execute(
 ) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::CreateEscrow {
-            swap_id,
+            recipient,
             hashlock,
             timelock,
-            recipient,
-            amount,
-        } => execute_create_escrow(deps, env, info, swap_id, hashlock, timelock, recipient, amount),
-        ExecuteMsg::Redeem { swap_id, secret } => execute_redeem(deps, env, info, swap_id, secret),
-        ExecuteMsg::Refund { swap_id } => execute_refund(deps, env, info, swap_id),
-    }
-}
-
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
-    match msg {
-        QueryMsg::GetEscrow { swap_id } => to_json_binary(&query_escrow(deps, swap_id)?),
-        QueryMsg::GetEscrowsByInitiator { initiator } => {
-            to_json_binary(&query_escrows_by_initiator(deps, initiator)?)
-        }
-        QueryMsg::GetEscrowsByRecipient { recipient } => {
-            to_json_binary(&query_escrows_by_recipient(deps, recipient)?)
-        }
+            token,
+            amount
+        } => execute_create_escrow(deps, env, info, recipient, hashlock, timelock, token, amount),
+        ExecuteMsg::Claim { hashlock, secret } => execute_claim(deps, env, info, hashlock, secret),
+        ExecuteMsg::Refund { hashlock } => execute_refund(deps, env, info, hashlock),
     }
 }
 
@@ -54,228 +46,220 @@ pub fn execute_create_escrow(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    swap_id: String,
+    recipient: String,
     hashlock: String,
     timelock: u64,
-    recipient: String,
-    expected_amount: Coin,
+    token: String,
+    amount: Uint128,
 ) -> Result<Response, ContractError> {
-    // 1. Check if timelock is in the future
-    let now = env.block.time.seconds();
-    if timelock <= now {
-        return Err(ContractError::InvalidTimelock {});
+    // Debug print the recipient address
+    println!("[CONTRACT] Validating recipient: {}", recipient);
+    println!("[CONTRACT] Address length: {}", recipient.len());
+
+    // Check recipient is a valid Bech32 address
+    let recipient_addr = deps.api.addr_validate(&recipient)
+        .map_err(|e| {
+            println!("[CONTRACT] Address validation failed: {:?}", e);
+            ContractError::InvalidAddress
+        })?;
+
+    println!("[CONTRACT] Address validated successfully");
+
+    // Validate hashlock is 32-byte hex (keccak256 format)
+    let hashlock_bytes = hex::decode(hashlock.trim_start_matches("0x"))
+        .map_err(|_| ContractError::InvalidHashlock(hashlock.clone()))?;
+
+    if hashlock_bytes.len() != 32 {
+        return Err(ContractError::InvalidHashlock(hashlock));
     }
 
-    // 2. Check if hashlock is a valid 32-byte hex string
-    let hash_bytes = match hex::decode(&hashlock) {
-        Ok(bytes) if bytes.len() == 32 => bytes,
-        _ => return Err(ContractError::InvalidHashlock {}),
-    };
-
-    // Prevent duplicate swap_id
-    if ESCROWS.has(deps.storage, swap_id.clone()) {
-        return Err(ContractError::SwapAlreadyExists {});
+    // Validate timelock is in the future
+    if timelock <= env.block.time.seconds() {
+        return Err(ContractError::InvalidTimelock {
+            current: env.block.time.seconds(),
+            timelock,
+        });
     }
 
-    let recipient_addr = deps.api.addr_validate(&recipient)?;
+    // --- 2. HANDLE TOKEN TRANSFER ---
+    let mut response = Response::new();
 
-    // Find the sent amount that matches the expected denomination
-    let sent_amount = info.funds.iter()
-        .find(|coin| coin.denom == expected_amount.denom)
-        .ok_or(ContractError::NoFundsSent {})?;
+    match token.as_str() {
+        // Case: Native token (e.g., "uatom")
+        "uatom" => {
+            let sent_amount = info.funds.iter()
+                .find(|coin| coin.denom == "uatom")
+                .map(|coin| coin.amount)
+                .unwrap_or_default();
 
-    // Validate sent amount matches expected amount
-    if sent_amount.amount != expected_amount.amount {
-        return Err(ContractError::InvalidFunds {});
+            if sent_amount < amount {
+                return Err(ContractError::InsufficientFunds {
+                    required: amount,
+                    sent: sent_amount,
+                });
+            }
+
+            // No action needed (tokens already sent to contract)
+        },
+        // Case: CW20 (we'll implement later)
+        _ => return Err(ContractError::UnsupportedToken(token)),
     }
 
+    // --- 3. SAVE ESCROW TO STATE ---
     let escrow = Escrow {
-        initiator: info.sender.clone(),
-        recipient: recipient_addr.clone(),
-        hashlock: Binary::from(hash_bytes),
+        creator: info.sender.clone(),
+        recipient: recipient_addr,
+        hashlock,
         timelock,
-        amount: expected_amount.clone(),
-        claimed: false,
-        refunded: false,
+        token,
+        amount,
+        is_claimed: false,
+        is_refunded: false,
     };
 
-    // Save to storage
-    ESCROWS.save(deps.storage, swap_id.clone(), &escrow)?;
+    let hashlock_clone = escrow.hashlock.clone();
+    ESCROWS.save(deps.storage, hashlock_clone, &escrow)?;
 
-    // Respond
-    Ok(Response::new()
+    // creator: info.sender.clone(),
+    // --- 4. BUILD RESPONSE ---
+    Ok(response
         .add_attribute("action", "create_escrow")
-        .add_attribute("initiator", info.sender)
+        .add_attribute("creator", info.sender)
         .add_attribute("recipient", recipient)
-        .add_attribute("timelock", timelock.to_string())
-        .add_attribute("amount", expected_amount.to_string())
-        .add_attribute("swap_id", swap_id))
+        .add_attribute("amount", amount.to_string()))
 }
 
-pub fn execute_redeem(
+fn execute_claim(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    swap_id: String,
+    hashlock: String,
     secret: String,
 ) -> Result<Response, ContractError> {
-    let mut escrow = ESCROWS.load(deps.storage, swap_id.clone())
-        .map_err(|_| ContractError::SwapNotFound {})?;
+    // --- 1. LOAD ESCROW ---
+    let mut escrow = ESCROWS.load(deps.storage, hashlock.clone())
+        .map_err(|_| ContractError::EscrowNotFound)?;
 
-    // Check if already claimed or refunded
-    if escrow.claimed {
-        return Err(ContractError::SwapAlreadyClaimed {});
-    }
-    if escrow.refunded {
-        return Err(ContractError::SwapAlreadyRefunded {});
-    }
+    // --- 2. VALIDATE CLAIM ---
 
-    // Check if timelock has not expired yet (we can only redeem before expiry)
-    let now = env.block.time.seconds();
-    if now >= escrow.timelock {
-        return Err(ContractError::TimelockExpired {});
+    // Check escrow is still active
+    if escrow.is_claimed || escrow.is_refunded {
+        return Err(ContractError::EscrowClosed);
     }
 
-    // Only recipient can redeem
-    if info.sender != escrow.recipient {
-        return Err(ContractError::UnauthorizedRedeem {});
+    // Verify secret matches hashlock (keccak256(secret) == hashlock)
+    let secret_bytes = secret.as_bytes();
+    let secret_hash = hex::encode(Keccak256::digest(secret_bytes));
+
+    if secret_hash != escrow.hashlock {
+        return Err(ContractError::InvalidSecret);
     }
 
-    // Verify the secret matches the hashlock
-    let secret_bytes = hex::decode(&secret).map_err(|_| ContractError::InvalidSecret {})?;
-    let hash = Sha256::digest(&secret_bytes);
-    if hash.as_slice() != escrow.hashlock.as_slice() {
-        return Err(ContractError::InvalidSecret {});
+    // --- 3. TRANSFER FUNDS ---
+    let mut response = Response::new();
+
+    match escrow.token.as_str() {
+        // Case: Native token (e.g., "uatom")
+        "uatom" => {
+            let transfer_msg = BankMsg::Send {
+                to_address: escrow.recipient.to_string(),
+                amount: vec![Coin {
+                    denom: "uatom".to_string(),
+                    amount: escrow.amount,
+                }],
+            };
+            response = response.add_message(transfer_msg);
+        },
+        // Case: CW20 (stretch goal)
+        _ => return Err(ContractError::UnsupportedToken(escrow.token)),
     }
 
-    // Mark as claimed
-    escrow.claimed = true;
-    ESCROWS.save(deps.storage, swap_id.clone(), &escrow)?;
+    // --- 4. UPDATE ESCROW STATE ---
+    escrow.is_claimed = true;
+    ESCROWS.save(deps.storage, hashlock.clone(), &escrow)?;
 
-    // Send funds to recipient
-    let send_msg = BankMsg::Send {
-        to_address: escrow.recipient.to_string(),
-        amount: vec![escrow.amount.clone()],
-    };
-
-    Ok(Response::new()
-        .add_message(send_msg)
-        .add_attribute("action", "redeem")
-        .add_attribute("swap_id", swap_id)
+    // --- 5. BUILD RESPONSE ---
+    Ok(response
+        .add_attribute("action", "claim")
+        .add_attribute("escrow", hashlock)
         .add_attribute("recipient", escrow.recipient)
-        .add_attribute("amount", escrow.amount.to_string())
-        .add_attribute("secret", secret))
-}
-
-pub fn execute_refund(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    swap_id: String,
-) -> Result<Response, ContractError> {
-    let mut escrow = ESCROWS.load(deps.storage, swap_id.clone())
-        .map_err(|_| ContractError::SwapNotFound {})?;
-
-    // Check if already claimed or refunded
-    if escrow.claimed {
-        return Err(ContractError::SwapAlreadyClaimed {});
-    }
-    if escrow.refunded {
-        return Err(ContractError::SwapAlreadyRefunded {});
-    }
-
-    // Check if timelock has expired
-    let now = env.block.time.seconds();
-    if now < escrow.timelock {
-        return Err(ContractError::TimelockNotExpired {});
-    }
-
-    // Only initiator can refund
-    if info.sender != escrow.initiator {
-        return Err(ContractError::UnauthorizedRefund {});
-    }
-
-    // Mark as refunded
-    escrow.refunded = true;
-    ESCROWS.save(deps.storage, swap_id.clone(), &escrow)?;
-
-    // Send funds back to initiator
-    let send_msg = BankMsg::Send {
-        to_address: escrow.initiator.to_string(),
-        amount: vec![escrow.amount.clone()],
-    };
-
-    Ok(Response::new()
-        .add_message(send_msg)
-        .add_attribute("action", "refund")
-        .add_attribute("swap_id", swap_id)
-        .add_attribute("initiator", escrow.initiator)
         .add_attribute("amount", escrow.amount.to_string()))
 }
 
-// Query functions
-pub fn query_escrow(deps: Deps, swap_id: String) -> StdResult<EscrowResponse> {
-    let escrow = ESCROWS.load(deps.storage, swap_id.clone())?;
-    Ok(EscrowResponse {
-        swap_id,
-        initiator: escrow.initiator,
-        recipient: escrow.recipient,
-        hashlock: hex::encode(escrow.hashlock),
+fn execute_refund(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    hashlock: String,
+) -> Result<Response, ContractError> {
+    // --- 1. LOAD ESCROW ---
+    let mut escrow = ESCROWS.load(deps.storage, hashlock.clone())
+        .map_err(|_| ContractError::EscrowNotFound)?;
+
+    // --- 2. VALIDATE REFUND CONDITIONS ---
+
+    // Check escrow is still active
+    if escrow.is_claimed || escrow.is_refunded {
+        return Err(ContractError::EscrowClosed);
+    }
+
+    // Verify timelock has expired
+    if env.block.time.seconds() < escrow.timelock {
+        return Err(ContractError::TimelockNotExpired {
+            expires: escrow.timelock,
+            current: env.block.time.seconds(),
+        });
+    }
+
+    // --- 3. TRANSFER FUNDS BACK TO CREATOR ---
+    let mut response = Response::new();
+
+    match escrow.token.as_str() {
+        // Case: Native token (e.g., "uatom")
+        "uatom" => {
+            let transfer_msg = BankMsg::Send {
+                to_address: escrow.creator.to_string(),
+                amount: vec![Coin {
+                    denom: "uatom".to_string(),
+                    amount: escrow.amount,
+                }],
+            };
+            response = response.add_message(transfer_msg);
+        },
+        // Case: CW20 (stretch goal)
+        _ => return Err(ContractError::UnsupportedToken(escrow.token)),
+    }
+
+    // --- 4. UPDATE ESCROW STATE ---
+    escrow.is_refunded = true;
+    ESCROWS.save(deps.storage, hashlock.clone(), &escrow)?;
+
+    // --- 5. BUILD RESPONSE ---
+    Ok(response
+        .add_attribute("action", "refund")
+        .add_attribute("escrow", hashlock)
+        .add_attribute("creator", escrow.creator)
+        .add_attribute("amount", escrow.amount.to_string()))
+}
+
+#[entry_point]
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
+    match msg {
+        QueryMsg::GetEscrow { hashlock } => query_escrow(deps, hashlock),
+    }
+}
+
+fn query_escrow(deps: Deps, hashlock: String) -> StdResult<Binary> {
+    let escrow = ESCROWS.load(deps.storage, hashlock)?;
+    let res = EscrowResponse {
+        creator: escrow.creator.to_string(),
+        recipient: escrow.recipient.to_string(),
+        hashlock: escrow.hashlock,
         timelock: escrow.timelock,
+        token: escrow.token,
         amount: escrow.amount,
-        claimed: escrow.claimed,
-        refunded: escrow.refunded,
-    })
-}
-
-pub fn query_escrows_by_initiator(deps: Deps, initiator: String) -> StdResult<Vec<EscrowResponse>> {
-    let initiator_addr = deps.api.addr_validate(&initiator)?;
-    let escrows: StdResult<Vec<_>> = ESCROWS
-        .range(deps.storage, None, None, cosmwasm_std::Order::Ascending)
-        .filter_map(|item| {
-            match item {
-                Ok((swap_id, escrow)) if escrow.initiator == initiator_addr => {
-                    Some(Ok(EscrowResponse {
-                        swap_id,
-                        initiator: escrow.initiator,
-                        recipient: escrow.recipient,
-                        hashlock: hex::encode(escrow.hashlock),
-                        timelock: escrow.timelock,
-                        amount: escrow.amount,
-                        claimed: escrow.claimed,
-                        refunded: escrow.refunded,
-                    }))
-                }
-                Ok(_) => None,
-                Err(e) => Some(Err(e)),
-            }
-        })
-        .collect();
-    escrows
-}
-
-pub fn query_escrows_by_recipient(deps: Deps, recipient: String) -> StdResult<Vec<EscrowResponse>> {
-    let recipient_addr = deps.api.addr_validate(&recipient)?;
-    let escrows: StdResult<Vec<_>> = ESCROWS
-        .range(deps.storage, None, None, cosmwasm_std::Order::Ascending)
-        .filter_map(|item| {
-            match item {
-                Ok((swap_id, escrow)) if escrow.recipient == recipient_addr => {
-                    Some(Ok(EscrowResponse {
-                        swap_id,
-                        initiator: escrow.initiator,
-                        recipient: escrow.recipient,
-                        hashlock: hex::encode(escrow.hashlock),
-                        timelock: escrow.timelock,
-                        amount: escrow.amount,
-                        claimed: escrow.claimed,
-                        refunded: escrow.refunded,
-                    }))
-                }
-                Ok(_) => None,
-                Err(e) => Some(Err(e)),
-            }
-        })
-        .collect();
-    escrows
+        is_claimed: escrow.is_claimed,
+        is_refunded: escrow.is_refunded,
+    };
+    to_binary(&res)
 }

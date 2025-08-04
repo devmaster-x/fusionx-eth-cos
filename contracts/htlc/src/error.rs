@@ -1,47 +1,36 @@
-use cosmwasm_std::{StdError};
+use cosmwasm_std::StdError;
 use thiserror::Error;
+use cosmwasm_std::Uint128;
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq)]
 pub enum ContractError {
     #[error("{0}")]
     Std(#[from] StdError),
 
-    #[error("Timelock must be in the future")]
-    InvalidTimelock {},
+    #[error("Invalid bech32 address")]
+    InvalidAddress,
 
-    #[error("Hashlock must be 32-byte hex string")]
-    InvalidHashlock {},
+    #[error("Hashlock must be 32-byte hex (got {0})")]
+    InvalidHashlock(String),
 
-    #[error("Swap with this ID already exists")]
-    SwapAlreadyExists {},
+    #[error("Timelock must be in future (current {current}, got {timelock})")]
+    InvalidTimelock { current: u64, timelock: u64 },
 
-    #[error("Funds sent do not match required amount")]
-    InvalidFunds {},
+    #[error("Insufficient funds (required {required}, got {sent})")]
+    InsufficientFunds { required: Uint128, sent: Uint128 },
 
-    #[error("No funds sent with escrow creation")]
-    NoFundsSent {},
+    #[error("Escrow already claimed or refunded")]
+    EscrowClosed,
 
-    #[error("Swap not found")]
-    SwapNotFound {},
+    #[error("Escrow not found")]
+    EscrowNotFound,
 
-    #[error("Invalid secret provided")]
-    InvalidSecret {},
+    #[error("Invalid secret (does not match hashlock)")]
+    InvalidSecret,
 
-    #[error("Swap already claimed")]
-    SwapAlreadyClaimed {},
+    #[error("Timelock not expired (expires: {expires}, current: {current})")]
+    TimelockNotExpired { expires: u64, current: u64 },
 
-    #[error("Swap already refunded")]
-    SwapAlreadyRefunded {},
-
-    #[error("Timelock has not expired yet")]
-    TimelockNotExpired {},
-
-    #[error("Timelock has expired")]
-    TimelockExpired {},
-
-    #[error("Only initiator can refund")]
-    UnauthorizedRefund {},
-
-    #[error("Only recipient can redeem")]
-    UnauthorizedRedeem {},
+    #[error("Unsupported token: {0}")]
+    UnsupportedToken(String),
 }

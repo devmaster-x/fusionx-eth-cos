@@ -1,85 +1,90 @@
-# CosmWasm Starter Pack
+# 1inch Fusion+ Cross-Chain HTLC
 
-This is a template to build smart contracts in Rust to run inside a
-[Cosmos SDK](https://github.com/cosmos/cosmos-sdk) module on all chains that enable it.
-To understand the framework better, please read the overview in the
-[cosmwasm repo](https://github.com/CosmWasm/cosmwasm/blob/master/README.md),
-and dig into the [cosmwasm docs](https://www.cosmwasm.com).
-This assumes you understand the theory and just want to get coding.
+A CosmWasm implementation of Hash Time-Locked Contracts enabling secure bidirectional swaps between Ethereum and Cosmos chains, extending 1inch Fusion+ functionality.
 
-## Creating a new repo from template
+## Architecture Overview
 
-Assuming you have a recent version of Rust and Cargo installed
-(via [rustup](https://rustup.rs/)),
-then the following should get you a new repo to start a contract:
+This implementation adapts Ethereum's HTLC pattern to Cosmos while adding cross-chain capabilities:
 
-Install [cargo-generate](https://github.com/ashleygwilliams/cargo-generate) and cargo-run-script.
-Unless you did that before, run this line now:
+### Key Enhancements Over Traditional HTLC
+- **Bidirectional Swaps**: Supports both Ethereum→Cosmos and Cosmos→Ethereum flows  
+- **1inch Fusion+ Integration**: Compatible with RFQ order matching  
+- **Cross-Chain Verification**: IBC/axelar ready for message passing  
+- **Partial Fills**: Supports splitting large orders  
 
-```sh
-cargo install cargo-generate --features vendored-openssl
-cargo install cargo-run-script
-```
+## Core Components
 
-Now, use it to create your new contract.
-Go to the folder in which you want to place it and run:
+### Smart Contracts
+- **HTLC Core** (`src/contract.rs`) - Main escrow logic with hashlock/timelock  
+- **Factory** (planned) - Manages escrow instances  
+- **Relayer** (planned) - Cross-chain message forwarding  
 
-**Latest**
+### Message Handlers
+- **Execute** (`src/msg.rs`):  
+  `CreateEscrow`, `Claim`, `Refund`, `UpdateParameters`  
+- **Query** (`src/msg.rs`):  
+  `GetEscrow`, `ListActiveSwaps`  
 
-```sh
-cargo generate --git https://github.com/CosmWasm/cw-template.git --name PROJECT_NAME
-```
+## Technical Specifications
 
-For cloning minimal code repo:
+### Key Differences from Ethereum HTLC
+| Feature          | Ethereum Version | This Implementation |
+|------------------|------------------|---------------------|
+| Platform         | Solidity         | CosmWasm (Rust)     |
+| Address Format   | Hex (0x...)      | Bech32 (cosmos1...) |
+| Token Standards  | ERC20            | CW20 + Native       |
+| Cross-Chain      | Bridge Dependent | Native IBC Support  |
 
-```sh
-cargo generate --git https://github.com/CosmWasm/cw-template.git --name PROJECT_NAME -d minimal=true
-```
+## Getting Started
 
-You will now have a new folder called `PROJECT_NAME` (I hope you changed that to something else)
-containing a simple working contract and build system that you can customize.
+### Prerequisites
+- Rust 1.68+  
+- `wasm32-unknown-unknown` target  
+- CosmWasm 1.2+  
+- Node.js (for deployment scripts)  
 
-## Create a Repo
+### Build & Test
+```bash
+# Compile optimized WASM
+cargo wasm
+wasm-opt -Os ./target/wasm32-unknown-unknown/release/htlc.wasm -o ./artifacts/htlc-optimized.wasm
 
-After generating, you have a initialized local git repo, but no commits, and no remote.
-Go to a server (eg. github) and create a new upstream repo (called `YOUR-GIT-URL` below).
-Then run the following:
+# Run tests
+Command for testing a test file(e.g., create_escrow.rs)
+cargo test --test --create_escrow -- --nocapture
 
-```sh
-# this is needed to create a valid Cargo.lock file (see below)
-cargo check
-git branch -M main
-git add .
-git commit -m 'Initial Commit'
-git remote add origin YOUR-GIT-URL
-git push -u origin main
-```
 
-## CI Support
+---
+Deployment
+# Deploy to Neutron testnet
+wasmd tx wasm store artifacts/htlc-optimized.wasm \
+  --from wallet \
+  --chain-id pion-1 \
+  --gas auto \
+  --gas-adjustment 1.3 \
+  -y
 
-We have template configurations for both [GitHub Actions](.github/workflows/Basic.yml)
-and [Circle CI](.circleci/config.yml) in the generated project, so you can
-get up and running with CI right away.
+---
+Contract Structure
+text
+src/
+├── contract.rs  # Core HTLC logic (create/claim/refund)
+├── state.rs     # Escrow state and storage
+├── msg.rs       # Message schemas
+├── error.rs     # Custom error handling
+└── lib.rs       # Contract entry points
+tests/
+├── unit/        # Isolated function tests
+└── integration/ # End-to-end flow tests
 
-One note is that the CI runs all `cargo` commands
-with `--locked` to ensure it uses the exact same versions as you have locally. This also means
-you must have an up-to-date `Cargo.lock` file, which is not auto-generated.
-The first time you set up the project (or after adding any dep), you should ensure the
-`Cargo.lock` file is updated, so the CI will test properly. This can be done simply by
-running `cargo check` or `cargo unit-test`.
+---
+Security Features
+Hashlock Verification: SHA-256 secret matching
 
-## Using your project
+Timelock Enforcement: Block-based expiration
 
-Once you have your custom repo, you should check out [Developing](./Developing.md) to explain
-more on how to run tests and develop code. Or go through the
-[online tutorial](https://docs.cosmwasm.com/) to get a better feel
-of how to develop.
+Funds Safeguards:
 
-[Publishing](./Publishing.md) contains useful information on how to publish your contract
-to the world, once you are ready to deploy it on a running blockchain. And
-[Importing](./Importing.md) contains information about pulling in other contracts or crates
-that have been published.
+Automatic refunds after expiry
 
-Please replace this README file with information about your specific project. You can keep
-the `Developing.md` and `Publishing.md` files as useful references, but please set some
-proper description in the README.
+Rescue mode for stuck funds
