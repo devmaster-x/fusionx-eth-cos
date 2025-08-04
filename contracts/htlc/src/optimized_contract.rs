@@ -3,7 +3,7 @@ use sha3::{Digest, Keccak256};
 use hex;
 use cw_storage_plus::{Map, Item};
 use cosmwasm_schema::cw_serde;
-use crate::msg::{InstantiateMsg, ExecuteMsg, QueryMsg, EscrowResponse, BatchEscrowResponse, UserEscrowsResponse, ConfigResponse};
+use crate::msg::{InstantiateMsg, ExecuteMsg, QueryMsg, EscrowResponse, BatchEscrowResponse};
 use crate::error::ContractError;
 
 // Optimized state management
@@ -493,4 +493,4 @@ fn query_user_escrows(deps: Deps, user: String) -> StdResult<Binary> {
 fn query_config(deps: Deps) -> StdResult<Binary> {
     let config = CONFIG.load(deps.storage)?;
     to_binary(&config)
-}
+} 

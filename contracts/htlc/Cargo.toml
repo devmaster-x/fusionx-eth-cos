@@ -47,6 +47,7 @@ schemars = "0.8.16"
 serde = { version = "1.0.197", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0.58" }
 sha2 = "0.10"
+sha3 = "0.10"
 hex = "0.4.3"
 
 [dev-dependencies]

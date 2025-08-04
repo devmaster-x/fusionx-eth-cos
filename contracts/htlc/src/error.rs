@@ -25,12 +25,30 @@ pub enum ContractError {
     #[error("Escrow not found")]
     EscrowNotFound,
 
+    #[error("Escrow already exists")]
+    EscrowAlreadyExists,
+
     #[error("Invalid secret (does not match hashlock)")]
     InvalidSecret,
 
     #[error("Timelock not expired (expires: {expires}, current: {current})")]
     TimelockNotExpired { expires: u64, current: u64 },
 
+    #[error("Timelock has expired")]
+    TimelockExpired,
+
+    #[error("Unauthorized refund (only creator can refund)")]
+    UnauthorizedRefund,
+
     #[error("Unsupported token: {0}")]
     UnsupportedToken(String),
+
+    #[error("Contract is paused")]
+    ContractPaused,
+
+    #[error("Invalid batch size (must be between 1 and max_batch_size)")]
+    InvalidBatchSize,
+
+    #[error("Unauthorized operation (admin only)")]
+    UnauthorizedOperation,
 }
